@@ -1,4 +1,4 @@
-package IPC::Gearman;
+package IPC::AnyEvent::Gearman;
 # ABSTRACT: turns baubles into trinkets
 use strict;
 use warnings;

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use Test::More;
 
-use IPC::Gearman;
+use IPC::AnyEvent::Gearman;
 
 use AnyEvent;
 
@@ -13,7 +13,7 @@ if( !$pid )
 }
 
 my $cv = AE::cv;
-my $ig = IPC::Gearman->new(servers=>['localhost:9999']);
+my $ig = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
 
 $ig->channel('123');
 is $ig->channel,'123';
