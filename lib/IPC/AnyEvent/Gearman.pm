@@ -1,5 +1,5 @@
 package IPC::AnyEvent::Gearman;
-# ABSTRACT: turns baubles into trinkets
+# ABSTRACT: IPC through gearmand.
 use Any::Moose;
 use namespace::autoclean;
 
