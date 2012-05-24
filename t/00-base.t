@@ -8,7 +8,7 @@ BEGIN{
     $useok = use_ok('Gearman::Server');
 }
 
-if( $useok ){
+if( !$useok ){
     fail();
     done_testing();
     exit;

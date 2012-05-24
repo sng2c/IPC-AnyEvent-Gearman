@@ -15,10 +15,19 @@ if( !$pid )
 my $cv = AE::cv;
 my $ig = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
 
-$ig->channel('123');
-is $ig->channel,'123';
+is $ig->pid,$$;
+$ig->on_receive(sub{
+    my $data = shift;
+    is $data, 'TEST';
+    $cv->send;
+});
 
+$ig->listen();
 
+my $ig2 = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
+$ig2->send('TEST');
 
 $cv->recv;
 kill 9,$pid;
+
+done_testing();
