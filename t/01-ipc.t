@@ -9,9 +9,9 @@ my $pid = fork();
 if( !$pid )
 {
     exec('gearmand -p 9999');
-    exit;
+    die('cannot gearmand');
 }
-
+sleep(3);
 my $cv = AE::cv;
 my $ig = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
 

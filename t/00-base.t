@@ -17,17 +17,16 @@ my $condvar = AE::cv;
 use IO::Socket::INET;
 
 my $pid = fork();
-
 if( !$pid ){
     exec('gearmand -p 9999');
+    die "cannot gearmand"
 }
-
+sleep(3);
 my $gw = gearman_worker 'localhost:9999';
 $gw->register_function( reverse => sub{ my $job = shift;
     my $res = reverse $job->workload;
     $job->complete($res);
     },);
-
 my $gc = gearman_client 'localhost:9999';
 $gc->add_task( reverse => 'test',
     on_complete => sub{
@@ -40,7 +39,9 @@ $gc->add_task( reverse => 'test',
         $condvar->send();
     });
 
-my $timeout = AE::timer 10, 0, sub{ $condvar->send(); };
+my $timeout = AE::timer 10, 0, sub{ 
+print "TIMEOUT\n";
+$condvar->send(); };
 
 $condvar->recv;
 done_testing();

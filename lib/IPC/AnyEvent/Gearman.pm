@@ -97,4 +97,10 @@ sub DESTROY{
 
 __PACKAGE__->meta->make_immutable;
 
+=pod
+
+
+=h1 SYNOPSIS
+
+=cut
 1;
