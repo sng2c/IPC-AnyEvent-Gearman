@@ -1,8 +1,8 @@
 package IPC::AnyEvent::Gearman;
 # ABSTRACT: turns baubles into trinkets
-use strict;
-use warnings;
 use Any::Moose;
+use namespace::autoclean;
+
 use Data::Dumper;
 use AnyEvent::Gearman;
 use Log::Log4perl qw(:easy);
@@ -94,5 +94,7 @@ sub DESTROY{
     my $self = shift;
     DEBUG $self->channel()." Destroyed";
 }
+
+__PACKAGE__->meta->make_immutable;
 
 1;
