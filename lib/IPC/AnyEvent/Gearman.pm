@@ -3,11 +3,11 @@ package IPC::AnyEvent::Gearman;
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init($DEBUG);
 use Any::Moose;
-#use MooseX::LeakCheck;
 use namespace::autoclean;
 
 use Data::Dumper;
 use AnyEvent::Gearman;
+use Devel::GlobalDestruction;
 
 =pod
 
@@ -85,18 +85,15 @@ has 'on_sendfail' => (is => 'rw', isa=>'CodeRef',
     default=>sub{return sub{WARN 'Send FAIL '.$_[0]};}
 );
 
-has 'client' => (is=>'rw', lazy=>1,
+has 'client' => (is=>'rw', lazy=>1, isa=>'Object',
 default=>sub{
     DEBUG 'lazy client';
     my $self = shift;
     return gearman_client @{$self->servers()};
 },
-
-        #leak_check=>1, 
 );
 
-has 'worker' => (is=>'rw', 
-                    #leak_check=>1,
+has 'worker' => (is=>'rw', isa=>'Object',
                     );
 
 after 'pid' => sub{
@@ -174,11 +171,14 @@ sub _renew_connection{
     );
     
 }
-
-sub DEMOLISH{   
+sub BUILD{
     my $self = shift;
-    $self->client(undef);
-    $self->worker(undef);
+    DEBUG $self->channel." BUILD";
+}
+sub DEMOLISH{   
+    return if in_global_destruction();
+    my $self = shift;
+    DEBUG $self->channel." DEMOLISH";
 }
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
