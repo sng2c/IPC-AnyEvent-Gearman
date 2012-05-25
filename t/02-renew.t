@@ -10,11 +10,6 @@ use AnyEvent;
 my $ig = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
 
 is $ig->pid,$$;
-$ig->on_receive(sub{
-    my $data = shift;
-    is $data, 'TEST';
-    $cv->send;
-});
 
 $ig->listen();
 my $worker = $ig->worker;
@@ -43,3 +38,4 @@ isnt $worker, $worker2, 'renew worker by servers';
 isnt $client, $client2, 'renew client bt servers';
 
 done_testing();
+

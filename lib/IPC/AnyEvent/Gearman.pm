@@ -1,12 +1,13 @@
 package IPC::AnyEvent::Gearman;
 # ABSTRACT: IPC through gearmand.
+use Log::Log4perl qw(:easy);
+Log::Log4perl->easy_init($DEBUG);
 use Any::Moose;
+#use MooseX::LeakCheck;
 use namespace::autoclean;
 
 use Data::Dumper;
 use AnyEvent::Gearman;
-use Log::Log4perl qw(:easy);
-Log::Log4perl->easy_init($DEBUG);
 
 =pod
 
@@ -84,14 +85,19 @@ has 'on_sendfail' => (is => 'rw', isa=>'CodeRef',
     default=>sub{return sub{WARN 'Send FAIL '.$_[0]};}
 );
 
-has 'client' => (is=>'rw', isa=>'Object', lazy=>1,
+has 'client' => (is=>'rw', lazy=>1,
 default=>sub{
     DEBUG 'lazy client';
     my $self = shift;
     return gearman_client @{$self->servers()};
-});
+},
 
-has 'worker' => (is=>'rw', isa=>'Object');
+        #leak_check=>1, 
+);
+
+has 'worker' => (is=>'rw', 
+                    #leak_check=>1,
+                    );
 
 after 'pid' => sub{
     my $self = shift;
@@ -169,11 +175,11 @@ sub _renew_connection{
     
 }
 
-sub DESTROY{
+sub DEMOLISH{   
     my $self = shift;
-    DEBUG $self->channel()." Destroyed";
+    $self->client(undef);
+    $self->worker(undef);
 }
-
-__PACKAGE__->meta->make_immutable;
+__PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
 1;

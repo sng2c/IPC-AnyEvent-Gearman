@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use Test::More;
+use Test::More tests=>2;
 use AnyEvent;
 use AnyEvent::Gearman;
 
