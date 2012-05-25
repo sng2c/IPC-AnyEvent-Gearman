@@ -1,5 +1,7 @@
 #!/usr/bin/perl
-use Test::More;
+use Test::More tests=>7;
+use Log::Log4perl qw(:easy); 
+Log::Log4perl->easy_init($ERROR);
 
 use IPC::AnyEvent::Gearman;
 
