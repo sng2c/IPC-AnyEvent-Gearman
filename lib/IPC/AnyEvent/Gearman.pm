@@ -43,43 +43,56 @@ use Devel::GlobalDestruction;
 =head3 new
 
 =cut
+
 =head4 pid
+
 'pid' is unique id for identifying each process.
 This can be any value not just PID.
 It is filled own PID by default.
+
 =cut
 
 has 'pid' => (is => 'rw', isa => 'Str', default=>sub{return $$;});
 
 =head4 servers
+
 ArrayRef of hosts.
+
 =cut
 has 'servers' => (is => 'rw', isa => 'ArrayRef',required => 1);
 
 =head4 prefix
+
 When register function, it uses prefix+pid as function name.
 It is filled 'IPC::AnyEvent::Gearman#' by default. 
+
 =cut
 has 'prefix' => (is => 'rw', isa => 'Str', default=>'IPC::AnyEvent::Gearman#');
 
 =head4 on_receive
+
 on_receive Hander.
 First argument is DATA which is sent.
 This can be invoked after listen().
+
 =cut
 has 'on_receive' => (is => 'rw', isa=>'CodeRef', 
     default=>sub{return sub{WARN 'You need to set on_receive function'};}
 );
 =head4 on_send
+
 on_send handler.
 First argument is a channel string.
+
 =cut
 has 'on_send' => (is => 'rw', isa=>'CodeRef', 
     default=>sub{return sub{INFO 'Send OK '.$_[0]};}
 );
 =head4 on_sendfail
+
 on_sendfail handler.
 First argument is a channel string.
+
 =cut
 has 'on_sendfail' => (is => 'rw', isa=>'CodeRef', 
     default=>sub{return sub{WARN 'Send FAIL '.$_[0]};}
@@ -120,22 +133,29 @@ after 'servers' => sub{
     }
 };
 
-=head4 listen
+=head3 listen
+
 To receive message, you MUST call listen().
+
 =cut
 sub listen{
     my $self = shift;
     $self->{listening} = 1;
     $self->_renew_connection();
 }
-=head4 channel
+
+=head3 channel
+
 get prefix+pid
+
 =cut
 sub channel{
     my $self = shift;
     return $self->prefix().$self->pid();
 }
-=head4 send
+
+=head3 send
+
 To send data to process listening prefix+pid, use this.
 You must set 'pid' or 'prefix' attribute on new() method.
 
