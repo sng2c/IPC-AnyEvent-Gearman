@@ -48,7 +48,7 @@ It is filled own PID by default.
 
 has 'pid' => (is => 'rw', isa => 'Str', default=>sub{return $$;});
 
-=head4 servers
+=attr servers
 
 ArrayRef of hosts.
 
