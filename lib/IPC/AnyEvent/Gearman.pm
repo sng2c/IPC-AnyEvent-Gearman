@@ -1,11 +1,12 @@
 package IPC::AnyEvent::Gearman;
 # ABSTRACT: IPC through gearmand.
+use namespace::autoclean;
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init($DEBUG);
 use Any::Moose;
-use namespace::autoclean;
 
 use Data::Dumper;
+use AnyEvent;
 use AnyEvent::Gearman;
 use Gearman::Worker;
 use Devel::GlobalDestruction;
