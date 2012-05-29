@@ -7,6 +7,7 @@ use namespace::autoclean;
 
 use Data::Dumper;
 use AnyEvent::Gearman;
+use Gearman::Worker;
 use Devel::GlobalDestruction;
 
 =pod
@@ -100,8 +101,9 @@ default=>sub{
 },
 );
 
-has 'worker' => (is=>'rw', isa=>'Object',
-                    );
+has 'worker' => (is=>'rw', isa=>'Object');
+
+has 'timer' => (is=>'rw', isa=>'Object');
 
 after 'pid' => sub{
     my $self = shift;
@@ -174,16 +176,21 @@ sub send{
 sub _renew_connection{
     my $self = shift;
     DEBUG "new Connection";
-    $self->worker(gearman_worker @{$self->servers()});
+    my $worker = Gearman::Worker->new();
+    $worker->job_servers(@{$self->servers()});
+
+    $self->worker($worker);
     $self->worker->register_function(
         $self->prefix().$self->pid() => sub{
             my $job = shift;
-            my $res = $self->on_receive()->($job->workload);
+            my $res = $self->on_receive()->($job->arg);
             $res = '' unless defined($res);
-            $job->complete($res);
+            return $res;
         }
     );
-    
+    $self->timer( AE::timer 0,0.1,sub{
+        $self->worker()->work(stop_if=>sub{1});
+    });
 }
 
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);
