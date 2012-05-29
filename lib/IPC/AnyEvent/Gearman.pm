@@ -185,15 +185,7 @@ sub _renew_connection{
     );
     
 }
-sub BUILD{
-    my $self = shift;
-    DEBUG $self->channel." BUILD";
-}
-sub DEMOLISH{   
-    return if in_global_destruction();
-    my $self = shift;
-    DEBUG $self->channel." DEMOLISH";
-}
+
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);
 
 1;
