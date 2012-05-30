@@ -8,7 +8,7 @@ use namespace::autoclean;
 use Data::Dumper;
 
 use AnyEvent::Gearman;
-use RetryConnection;
+use AnyEvent::Gearman::Worker::RetryConnection;
 
 =pod
 
@@ -175,7 +175,9 @@ sub send{
 sub _renew_connection{
     my $self = shift;
     DEBUG "new Connection";
-    $self->worker( gearman_worker @{$self->servers()} );
+    my $worker = gearman_worker @{$self->servers()};
+    $worker = AnyEvent::Gearman::Worker::RetryConnection::patch_worker($worker);
+    $self->worker( $worker );
     $self->worker->register_function(
         $self->prefix().$self->pid() => sub{
             my $job = shift;
