@@ -13,8 +13,9 @@ use Any::Moose;
 
 use Data::Dumper;
 
-has retry_count=>(is=>'rw',isa=>'Int',clearer=>'reset_retry',default=>0);
+has retry_count=>(is=>'rw',isa=>'Int',clearer=>'reset_retry',default=>sub{0});
 has retry_timer=>(is=>'rw',isa=>'Object',clearer=>'reset_timer');
+has registered=>(is=>'ro',isa=>'HashRef',default=>sub{return {};});
 extends 'AnyEvent::Gearman::Worker::Connection';
 override connect=>sub{
     my ($self) = @_;
@@ -30,6 +31,11 @@ override connect=>sub{
                 fh       => $fh,
                 on_read  => sub { $self->process_packet },
                 on_error => sub {
+                    my ($hdl, $fatal, $msg) = @_;
+
+                    DEBUG $fatal;
+                    DEBUG $msg;
+
                     my @undone = @{ $self->_need_handle },
                                  values %{ $self->_job_handles };
                     $_->event('on_fail') for @undone;
@@ -37,39 +43,31 @@ override connect=>sub{
                     $self->_need_handle([]);
                     $self->_job_handles({});
                     $self->mark_dead;
+                    
+                    $self->retry_connect();
                 },
             );
+ 
+            $self->handler( $handle );
+            $_->() for map { $_->[0] } @{ $self->on_connect_callbacks };
             
+            DEBUG "connected"; 
+            if( $self->retry_count > 0 )
+            {
+                foreach my $key (keys %{$self->registered})
+                {
+                    DEBUG "re-register '".$key."'";
+                    $self->register_function($key,$self->registered->{$key});
+                }
+            }
             $self->reset_retry;
             $self->reset_timer;
 
-            $self->handler( $handle );
-            $_->() for map { $_->[0] } @{ $self->on_connect_callbacks };
+
         }
         else {
-=pod
-            if( $self->retry_count >= 3 )
-            {
-                warn sprintf("Connection failed: %s", $!);
-                $self->mark_dead;
-                $self->reset_retry;
-                $self->reset_timer;
-                $_->() for map { $_->[1] } @{ $self->on_connect_callbacks };
-            }
-            else
-=cut
-            {
-                if( !$self->retry_timer ){
-                    my $timer = AE::timer 0.1,0,sub{
-                        DEBUG "retry connect";
-                        $self->retry_count($self->retry_count+1);
-                        $self->connect();
-                        $self->reset_timer;
-                    };
-                    $self->retry_timer($timer);
-                }
-                return;
-            }
+            $self->retry_connect;
+            return;
         }
  
         $self->on_connect_callbacks( [] );
@@ -81,10 +79,25 @@ override connect=>sub{
     $self;
 };
 
+after 'register_function'=>sub{
+    my $self = shift;
+    $self->registered->{$_[0]} = $_[1];
+};
+
+sub retry_connect{
+    my $self = shift;
+    if( !$self->retry_timer ){
+        my $timer = AE::timer 0.1,0,sub{
+            DEBUG "retry connect";
+            $self->retry_count((!!$self->retry_count)+1);
+            $self->connect();
+            $self->reset_timer;
+        };
+        $self->retry_timer($timer);
+    }
+}
 
 package main;
-
-
 
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init($DEBUG);
@@ -95,15 +108,15 @@ use AnyEvent::Gearman;
 
 
 
-my $gid = fork();
-if( !$gid )
-{
-    sleep(10);
-    DEBUG "######## start_gearmand ########";
-    exec('gearmand -p 9999');
-    die('cannot gearmand');
-}
+my $gid;
 
+    $gid = fork();
+    if( !$gid )
+    {
+        DEBUG "######## start_gearmand ########";
+        exec('gearmand -p 9999');
+        die('cannot gearmand');
+    }
 
 
 
@@ -142,6 +155,18 @@ if( $@){
     kill 9,$gid;
     exit;
 }
+
+my $tt = AE::timer 5,0,sub{
+    kill 9,$gid;
+    sleep(2);
+    $gid = fork();
+    if( !$gid )
+    {
+        DEBUG "######## start_gearmand ########";
+        exec('gearmand -p 9999');
+        die('cannot gearmand');
+    }
+};
 my $t = AE::timer 13,0,sub{
         DEBUG ">>>>> SEND to child \n";
 my $client = gearman_client 'localhost:9999';
@@ -161,7 +186,7 @@ $client->add_task(
 };
 
 
-my $t2 = AE::timer 15,0,sub{$cv->send;};
+my $t2 = AE::timer 18,0,sub{$cv->send;};
 
 $cv->recv;
 undef $t;

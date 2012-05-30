@@ -1,5 +1,9 @@
 package AnyEvent::Gearman::Worker::RetryConnection;
 
+# ABSTRACT: patching AnyEvent::Gearman::Worker:Connection
+
+# VERSION 
+
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init($DEBUG);
 
@@ -13,8 +17,9 @@ use Any::Moose;
 
 use Data::Dumper;
 
-has retry_count=>(is=>'rw',isa=>'Int',clearer=>'reset_retry',default=>0);
+has retry_count=>(is=>'rw',isa=>'Int',clearer=>'reset_retry',default=>sub{0});
 has retry_timer=>(is=>'rw',isa=>'Object',clearer=>'reset_timer');
+has registered=>(is=>'ro',isa=>'HashRef',default=>sub{return {};});
 extends 'AnyEvent::Gearman::Worker::Connection';
 override connect=>sub{
     my ($self) = @_;
@@ -30,6 +35,11 @@ override connect=>sub{
                 fh       => $fh,
                 on_read  => sub { $self->process_packet },
                 on_error => sub {
+                    my ($hdl, $fatal, $msg) = @_;
+
+                    DEBUG $fatal;
+                    DEBUG $msg;
+
                     my @undone = @{ $self->_need_handle },
                                  values %{ $self->_job_handles };
                     $_->event('on_fail') for @undone;
@@ -37,39 +47,30 @@ override connect=>sub{
                     $self->_need_handle([]);
                     $self->_job_handles({});
                     $self->mark_dead;
+                    
+                    $self->retry_connect();
                 },
             );
+ 
+            $self->handler( $handle );
+            $_->() for map { $_->[0] } @{ $self->on_connect_callbacks };
             
+            DEBUG "connected"; 
+            if( $self->retry_count > 0 )
+            {
+                foreach my $key (keys %{$self->registered})
+                {
+                    DEBUG "re-register '".$key."'";
+                    $self->register_function($key,$self->registered->{$key});
+                }
+            }
             $self->reset_retry;
             $self->reset_timer;
 
-            $self->handler( $handle );
-            $_->() for map { $_->[0] } @{ $self->on_connect_callbacks };
         }
         else {
-=pod
-            if( $self->retry_count >= 3 )
-            {
-                warn sprintf("Connection failed: %s", $!);
-                $self->mark_dead;
-                $self->reset_retry;
-                $self->reset_timer;
-                $_->() for map { $_->[1] } @{ $self->on_connect_callbacks };
-            }
-            else
-=cut
-            {
-                if( !$self->retry_timer ){
-                    my $timer = AE::timer 0.1,0,sub{
-                        DEBUG "retry connect";
-                        $self->retry_count($self->retry_count+1);
-                        $self->connect();
-                        $self->reset_timer;
-                    };
-                    $self->retry_timer($timer);
-                }
-                return;
-            }
+            $self->retry_connect;
+            return;
         }
  
         $self->on_connect_callbacks( [] );
@@ -80,6 +81,24 @@ override connect=>sub{
  
     $self;
 };
+
+after 'register_function'=>sub{
+    my $self = shift;
+    $self->registered->{$_[0]} = $_[1];
+};
+
+sub retry_connect{
+    my $self = shift;
+    if( !$self->retry_timer ){
+        my $timer = AE::timer 0.1,0,sub{
+            DEBUG "retry connect";
+            $self->retry_count((!!$self->retry_count)+1);
+            $self->connect();
+            $self->reset_timer;
+        };
+        $self->retry_timer($timer);
+    }
+}
 
 sub patch_worker{
     my $worker = shift;
