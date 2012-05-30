@@ -1,6 +1,6 @@
 use Test::More tests=>1;
 use Log::Log4perl qw(:easy);
-Log::Log4perl->easy_init($DEBUG);
+Log::Log4perl->easy_init($ERROR);
 
 use AnyEvent;
 use EV;
