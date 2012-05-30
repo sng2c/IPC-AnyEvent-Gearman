@@ -109,4 +109,5 @@ sub patch_worker{
     }
     return $worker;
 }
+__PACKAGE__->meta->make_immutable;
 1;
