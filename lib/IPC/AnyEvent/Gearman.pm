@@ -6,8 +6,9 @@ use Any::Moose;
 use namespace::autoclean;
 
 use Data::Dumper;
+
 use AnyEvent::Gearman;
-use Devel::GlobalDestruction;
+use RetryConnection;
 
 =pod
 
@@ -174,7 +175,7 @@ sub send{
 sub _renew_connection{
     my $self = shift;
     DEBUG "new Connection";
-    $self->worker(gearman_worker @{$self->servers()});
+    $self->worker( gearman_worker @{$self->servers()} );
     $self->worker->register_function(
         $self->prefix().$self->pid() => sub{
             my $job = shift;
@@ -183,7 +184,6 @@ sub _renew_connection{
             $job->complete($res);
         }
     );
-    
 }
 
 __PACKAGE__->meta->make_immutable(inline_constructor => 0);
