@@ -1,7 +1,7 @@
 package IPC::AnyEvent::Gearman;
 # ABSTRACT: IPC through gearmand.
 use Log::Log4perl qw(:easy);
-Log::Log4perl->easy_init($DEBUG);
+Log::Log4perl->easy_init($ERROR);
 use Any::Moose;
 use namespace::autoclean;
 
