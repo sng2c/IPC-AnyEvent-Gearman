@@ -9,13 +9,13 @@ use AnyEvent;
 
 my $ig = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
 
-is $ig->pid,$$;
+isnt $ig->channel,$$;
 
 $ig->listen();
 my $worker = $ig->worker;
 my $client = $ig->client;
 
-$ig->pid($$);
+$ig->channel('MYCH');
 my $client2 = $ig->client;
 my $worker2 = $ig->worker;
 isnt $worker, $worker2, 'renew worker by pid';
@@ -23,7 +23,7 @@ is $client, $client, 'renew not client by pid';
 
 $worker = $ig->worker;
 $client = $ig->client;
-$ig->prefix("test_prefix");
+$ig->channel("test_prefix");
 $client2 = $ig->client;
 $worker2 = $ig->worker;
 isnt $worker, $worker2, 'renew worker by prefix';

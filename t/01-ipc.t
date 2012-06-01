@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-use Test::More tests=>2;
+use Test::More tests=>1;
 
 use Log::Log4perl qw(:easy); 
 Log::Log4perl->easy_init($ERROR);
@@ -18,7 +18,6 @@ sleep(3);
 my $cv = AE::cv;
 my $ig = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
 
-is $ig->pid,$$;
 $ig->on_recv(sub{
     my $data = shift;
     is $data, 'TEST';
@@ -28,7 +27,7 @@ $ig->on_recv(sub{
 $ig->listen();
 
 my $ig2 = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
-$ig2->send($ig->pid,'TEST');
+$ig2->send($ig->channel,'TEST');
 
 $cv->recv;
 kill 9,$pid;

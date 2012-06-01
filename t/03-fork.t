@@ -20,13 +20,14 @@ my $cv = AE::cv;
 my $ppid = $$;
 foreach (1..10){
     DEBUG "#$_\n";
+    my $ch = 'ch#'.$_;
     $pid = fork();
     if( $pid ){
-        push(@childs, $pid);
+        push(@childs, $ch);
     }
 
     else{
-        $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+        $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999'],channel=>$ch);
         DEBUG "<<<<< start CHILD ".$recv->channel."\n";
         $recv->on_recv(sub{ 
             DEBUG "<<<<< RECV $_[0]\n";
@@ -45,14 +46,14 @@ foreach (1..10){
 
 my $t = AE::timer 5,0,sub{
     DEBUG ">>>>> SEND killall\n";
-    my $ch = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
-    $ch->on_sent(sub{
+    my $ipc = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+    $ipc->on_sent(sub{
         my ($ch,$res) = @_;
         is $res,'OK';
     });
 
-    foreach my $pid (@childs){
-        $ch->send($pid,'kill');
+    foreach my $ch (@childs){
+        $ipc->send($ch,'kill');
     }
 };
 my $t2 = AE::timer 8,0,sub{$cv->send;};

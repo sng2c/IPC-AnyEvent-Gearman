@@ -7,61 +7,26 @@ use Any::Moose;
 use Data::Dumper;
 use AnyEvent::Gearman;
 use AnyEvent::Gearman::Worker::RetryConnection;
-
-=pod
-
-
-=head1 SYNOPSIS
-
-    use AnyEvent;
-    use IPC::AnyEvent::Gearman;
-    
-    #receive    
-    my $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
-    $recv->pid($$); # pid is $$ by default 
-    $recv->on_recv(sub{
-        my $msg = shift;
-        print "received msg : $data\n";
-        return "OK";#result
-    });
-    $recv->listen();
-
-    my $cv = AE::cv;
-    $cv->recv;
-
-    #send
-    my $pid = $$;
-    my $send = IPC::AnyEvent::Gearman->new(server=>['localhost:9999']);
-    my $result = $send->send($pid,"TEST DATA");
-    
-=cut
+use UUID::Random;
 
 # VERSION
 
-=attr pid
-
-'pid' is unique id for identifying each process.
-This can be any value not just PID.
-It is filled own PID by default.
-
-=cut
-
-has 'pid' => (is => 'rw', isa => 'Str', default=>sub{return $$;});
 
 =attr job_servers
 
-ArrayRef of hosts.
+ArrayRef of hosts. *REQUIRED*
 
 =cut
 has 'job_servers' => (is => 'rw', isa => 'ArrayRef',required => 1);
 
-=attr prefix
+=attr channel
 
-When register function, it uses prefix+pid as function name.
-It is filled 'IPC::AnyEvent::Gearman#' by default. 
+get/set channel. When set, reconnect to new channel.
+It is set with Random-UUID by default.
 
 =cut
-has 'prefix' => (is => 'rw', isa => 'Str', default=>'IPC::AnyEvent::Gearman#');
+
+has channel => (is => 'rw', default=>sub{UUID::Random::generate;} );
 
 =attr on_recv
 
@@ -100,17 +65,9 @@ default=>sub{
 },
 );
 
-has 'worker' => (is=>'rw', isa=>'Object',
-                    );
+has 'worker' => (is=>'rw', isa=>'Object',);
 
-after 'pid' => sub{
-    my $self = shift;
-    if( @_ && $self->{listening}){
-        $self->_renew_connection();    
-    }
-};
-
-after 'prefix' => sub{
+after 'channel' => sub{
     my $self = shift;
     if( @_ && $self->{listening}){
         $self->_renew_connection();    
@@ -131,6 +88,9 @@ after 'job_servers' => sub{
 
 To receive message, you MUST call listen().
 
+    my $sender = IPC::AnyEvent::Gearman->new(channel=>'ADMIN',job_servers=>['localhost:9998']);
+    $sender->listen();
+
 =cut
 sub listen{
     my $self = shift;
@@ -138,39 +98,26 @@ sub listen{
     $self->_renew_connection();
 }
 
-=method channel
-
-get prefix+pid
-
-=cut
-sub channel{
-    my $self = shift;
-    my $pid = shift;
-    $pid = $self->pid() unless( $pid );
-    return $self->prefix().$pid;
-}
-
 =method send
 
-To send data to process listening prefix+pid, use this.
+To send data to process listening channel, use this.
 
     my $sender = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9998']);
-    $sender->prefix('MYIPC');
-    $sender->send(1201,'DATA');
+    $sender->send($channel,'DATA');
 
 =cut
 sub send{
     my $self = shift;
-    my $target_pid = shift;
+    my $target_channel= shift;
     my $data = shift;
     $self->client->add_task(
-        $self->channel($target_pid) => $data,
+        $target_channel => $data,
         on_complete => sub{
             my $result = $_[1];
-            $self->on_sent()->($self->channel($target_pid),$_[1]);
+            $self->on_sent()->($target_channel,$_[1]);
         },
         on_fail => sub{
-            $self->on_fail()->($self->channel($target_pid));
+            $self->on_fail()->($target_channel);
         }
     );
 }
@@ -182,7 +129,7 @@ sub _renew_connection{
     $worker = AnyEvent::Gearman::Worker::RetryConnection::patch_worker($worker);
     $self->worker( $worker );
     $self->worker->register_function(
-        $self->prefix().$self->pid() => sub{
+        $self->channel() => sub{
             my $job = shift;
             my $res = $self->on_recv()->($job->workload);
             $res = '' unless defined($res);
@@ -194,3 +141,35 @@ sub _renew_connection{
 __PACKAGE__->meta->make_immutable;
 
 1;
+
+__END__
+
+=pod
+
+
+=head1 SYNOPSIS
+
+    use AnyEvent;
+    use IPC::AnyEvent::Gearman;
+    
+    #receive    
+    my $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+    $recv->channel('BE_CALLED'); # channel is set with a random UUID by default 
+    $recv->on_recv(sub{
+        my $msg = shift;
+        print "received msg : $data\n";
+        return "OK";#result
+    });
+    $recv->listen();
+
+    my $cv = AE::cv;
+    $cv->recv;
+
+    #send
+    my $ch = 'BE_CALLED';
+    my $send = IPC::AnyEvent::Gearman->new(server=>['localhost:9999']);
+    my $result = $send->send($ch,"TEST DATA");
+    pritn $result; # prints "OK"
+    
+=cut
+

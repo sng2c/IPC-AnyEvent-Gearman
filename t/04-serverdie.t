@@ -42,7 +42,7 @@ my $t = AE::timer 5,0,sub{
             is $res,'OK';
             $cv->send if( $res eq 'OK' );
         });
-        $ch->send($$,'kill');
+        $ch->send($recv->channel,'kill');
 };
 
 my $t2 = AE::timer 8,0,sub{$cv->send;};
