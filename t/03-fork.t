@@ -26,9 +26,9 @@ foreach (1..10){
     }
 
     else{
-        $recv = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
+        $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
         DEBUG "<<<<< start CHILD ".$recv->channel."\n";
-        $recv->on_receive(sub{ 
+        $recv->on_recv(sub{ 
             DEBUG "<<<<< RECV $_[0]\n";
             $cv->send if( $_[0] eq 'kill' );
             return "OK";
@@ -45,13 +45,14 @@ foreach (1..10){
 
 my $t = AE::timer 5,0,sub{
     DEBUG ">>>>> SEND killall\n";
+    my $ch = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+    $ch->on_sent(sub{
+        my ($ch,$res) = @_;
+        is $res,'OK';
+    });
+
     foreach my $pid (@childs){
-        my $ch = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999'],pid=>$pid);
-        $ch->on_send(sub{
-            my ($ch,$res) = @_;
-            is $res,'OK';
-        });
-        $ch->send('kill');
+        $ch->send($pid,'kill');
     }
 };
 my $t2 = AE::timer 8,0,sub{$cv->send;};

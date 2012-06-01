@@ -7,7 +7,7 @@ use IPC::AnyEvent::Gearman;
 
 use AnyEvent;
 
-my $ig = IPC::AnyEvent::Gearman->new(servers=>['localhost:9999']);
+my $ig = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
 
 is $ig->pid,$$;
 
@@ -31,11 +31,11 @@ is $client, $client, 'renew not client by prefix';
 
 $worker = $ig->worker;
 $client = $ig->client;
-$ig->servers(['localhost:9999']);
+$ig->job_servers(['localhost:9999']);
 $client2 = $ig->client;
 $worker2 = $ig->worker;
-isnt $worker, $worker2, 'renew worker by servers';
-isnt $client, $client2, 'renew client bt servers';
+isnt $worker, $worker2, 'renew worker by job_servers';
+isnt $client, $client2, 'renew client bt job_servers';
 
 done_testing();
 
