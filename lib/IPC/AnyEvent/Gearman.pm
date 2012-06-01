@@ -18,6 +18,7 @@ use AnyEvent::Gearman::Worker::RetryConnection;
     
     #receive    
     my $recv = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+    $recv->pid($$); # pid is $$ by default 
     $recv->on_recv(sub{
         my $msg = shift;
         print "received msg : $data\n";
@@ -29,9 +30,9 @@ use AnyEvent::Gearman::Worker::RetryConnection;
     $cv->recv;
 
     #send
+    my $pid = $$;
     my $send = IPC::AnyEvent::Gearman->new(server=>['localhost:9999']);
-    $send->pid(1102);
-    my $result = $send->send("TEST DATA");
+    my $result = $send->send($pid,"TEST DATA");
     
 =cut
 
