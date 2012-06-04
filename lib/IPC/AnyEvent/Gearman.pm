@@ -1,8 +1,10 @@
 package IPC::AnyEvent::Gearman;
 # ABSTRACT: IPC through gearmand.
+use Devel::GlobalDestruction;
 use namespace::autoclean;
 use Log::Log4perl qw(:easy);
 Log::Log4perl->easy_init($ERROR);
+use Scalar::Util qw(weaken);
 use Any::Moose;
 use Data::Dumper;
 use AnyEvent::Gearman;
@@ -120,6 +122,7 @@ sub send{
             $self->on_fail()->($target_channel);
         }
     );
+    weaken($self);
 }
 
 sub _renew_connection{
@@ -136,8 +139,13 @@ sub _renew_connection{
             $job->complete($res);
         }
     );
+    weaken($self);
 }
-
+sub DEMOLISH{
+    return if in_global_destruction;
+    my $self = shift;
+    DEBUG __PACKAGE__." DEMOLISHED";
+}
 __PACKAGE__->meta->make_immutable;
 
 1;

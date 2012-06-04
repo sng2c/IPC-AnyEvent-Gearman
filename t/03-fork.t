@@ -38,19 +38,18 @@ foreach (1..10){
         $cv->recv;
         undef $recv;
         DEBUG "DEAD CHILD $$\n";
-
         exit;
     }
 }
 
-
+DEBUG "--------------- FORK DONE ----------------";
+my $ipc = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+$ipc->on_sent(sub{
+    my ($ch,$res) = @_;
+    is $res,'OK';
+});
 my $t = AE::timer 5,0,sub{
     DEBUG ">>>>> SEND killall\n";
-    my $ipc = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
-    $ipc->on_sent(sub{
-        my ($ch,$res) = @_;
-        is $res,'OK';
-    });
 
     foreach my $ch (@childs){
         $ipc->send($ch,'kill');

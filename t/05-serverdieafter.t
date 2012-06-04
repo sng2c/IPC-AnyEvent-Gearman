@@ -43,16 +43,17 @@ my $tt = AE::timer 3,0,sub{
     }
 
 };
+my $ch = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
+$ch->on_sent(sub{
+    my ($ch,$res) = @_;
+    DEBUG "res : $res";
+    is $res,'OK';
+    $cv->send if( $res eq 'OK' );
+});
+
 my $t = AE::timer 8,0,sub{
-        DEBUG ">>>>> SEND to child \n";
-        my $ch = IPC::AnyEvent::Gearman->new(job_servers=>['localhost:9999']);
-        $ch->on_sent(sub{
-            my ($ch,$res) = @_;
-            DEBUG "res : $res";
-            is $res,'OK';
-            $cv->send if( $res eq 'OK' );
-        });
-        $ch->send($recv->channel,'kill');
+    DEBUG ">>>>> SEND to child \n";
+    $ch->send($recv->channel,'kill');
 };
 
 my $t2 = AE::timer 13,0,sub{$cv->send;};
